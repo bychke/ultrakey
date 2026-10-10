@@ -57,7 +57,7 @@ internal sealed class KeyerRun
 
     private readonly uint[] px;
     private readonly int w, h, n;
-    private readonly KeyerSettings s;
+    private KeyerSettings s;
     private readonly CancellationToken ct;
     private readonly ParallelOptions po;
 
@@ -76,6 +76,7 @@ internal sealed class KeyerRun
 
     // Effective mode: Auto switches to chroma keying when it finds a green / blue screen.
     private bool chromaMode;
+    private float edgeScale = 1f; // > 1 when the matte comes from a lower resolution (AI mask)
     private bool keepEnclosed;
 
     public KeyerRun(uint[] px, int w, int h, KeyerSettings s, CancellationToken ct)
@@ -91,6 +92,14 @@ internal sealed class KeyerRun
 
     public uint[] Run()
     {
+        if (s.Mode == KeyMode.AiSubject)
+        {
+            float[]? mask = Ai.AiSegmenter.Segment(px, w, h, ct);
+            Mark("ai");
+            if (mask != null) return RunAi(mask);
+            s = s with { Mode = KeyMode.Auto }; // model not shipped: fall back to background detection
+        }
+
         ComputeLab();
         Mark("lab");
         BuildModel();
@@ -161,6 +170,45 @@ internal sealed class KeyerRun
 
         AdjustMatte();
         Mark("adjust");
+        var output = Compose();
+        Mark("compose");
+        return output;
+    }
+
+    /// <summary>
+    /// AI mode: the network's subject mask replaces the colour model. It is only 320×320, so the outline is
+    /// rebuilt on the real pixels with the same edge machinery (colour-line projection, guided filter) and the
+    /// colours are decontaminated as usual.
+    /// </summary>
+    private uint[] RunAi(float[] mask)
+    {
+        chromaMode = false;
+        keepEnclosed = false;
+        model = Array.Empty<Lab>();
+        ConfigureThresholds();
+        edgeScale = MathF.Max(1f, Math.Max(w, h) / 320f);
+
+        // Tolerance shifts the decision towards removing more, softness widens the transition.
+        float t0 = (float)(0.5 * Math.Clamp(s.Tolerance, 0, 100) / 100.0);
+        float t1 = MathF.Min(1f, t0 + (float)(0.2 + 0.6 * Math.Clamp(s.Softness, 0, 100) / 100.0));
+        alpha = new float[n];
+        Parallel.For(0, h, po, y =>
+        {
+            int row = y * w;
+            for (int x = 0; x < w; x++) alpha[row + x] = ColorMath.SmoothStep(t0, t1, mask[row + x]);
+        });
+        ImageOps.RemoveSmallComponents(alpha, w, h, s.SpeckSize, ct);
+        Debug?.Invoke("alpha0", alpha, w, h);
+
+        if (s.EdgeDetail > 0)
+        {
+            ProjectEdges(null);
+            Debug?.Invoke("alpha_proj", alpha, w, h);
+            RefineWithGuidedFilter();
+            Debug?.Invoke("alpha_gf", alpha, w, h);
+        }
+        if (s.SolidCore) FillSolidCore();
+        AdjustMatte();
         var output = Compose();
         Mark("compose");
         return output;
@@ -892,7 +940,7 @@ internal sealed class KeyerRun
     /// </summary>
     private const float ApClip = 0.02f;
 
-    private void ProjectEdges(float[] dist)
+    private void ProjectEdges(float[]? dist)
     {
         // Transition pixels, plus opaque pixels whose colour is still close to the background
         // (mixtures with a bright subject reach "opaque" distances long before full coverage).
@@ -900,7 +948,7 @@ internal sealed class KeyerRun
         float near = chromaMode ? 0f : tol + soft;
         // Plain backdrops: widen the band, since Oklab exaggerates small brightness differences near black and
         // white, a fibre covering a fraction of a pixel can look fully opaque by colour distance alone.
-        int widen = chromaMode ? 2 : 2 + (int)Math.Round(4 * Math.Clamp(s.EdgeDetail / 100.0, 0, 1));
+        int widen = (chromaMode ? 2 : 2 + (int)Math.Round(4 * Math.Clamp(s.EdgeDetail / 100.0, 0, 1))) + (int)MathF.Round(edgeScale);
         var band = Band(0.004f, 0.996f, widen, out bool any, dist, near);
         if (!any) return;
 
@@ -1016,7 +1064,7 @@ internal sealed class KeyerRun
 
     private void RefineWithGuidedFilter()
     {
-        int r = Math.Clamp(s.RefineRadius, 1, 50);
+        int r = Math.Clamp(Math.Max(s.RefineRadius, (int)MathF.Round(edgeScale)), 1, 50);
         var band = Band(0.01f, 0.99f, r, out bool any);
         if (!any) return;
         double m = Math.Clamp(s.EdgeDetail / 100.0, 0, 1);
@@ -1121,9 +1169,13 @@ internal sealed class KeyerRun
                         {
                             kr = bp.R[i]; kg = bp.G[i]; kb = bp.B[i];
                         }
-                        else
+                        else if (model.Length > 0)
                         {
                             model[0].ToLinear(out kr, out kg, out kb);
+                        }
+                        else
+                        {
+                            kr = kg = kb = 0f;
                         }
                         Despill(ref fr, ref fg, ref fb, kr, kg, kb, despill, restrictHue);
                     }

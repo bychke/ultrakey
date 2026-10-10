@@ -13,7 +13,8 @@ internal static class Strings
     public static string WindowTitle => T("UltraKey – Background Remover & Chroma Key", "UltraKey – usuwanie tła i chroma key");
 
     public static string Mode => T("Background", "Tło");
-    public static string ModeAuto => T("Auto – detect from image edges (any colour, green screens too)", "Auto – wykryj z krawędzi obrazu (dowolny kolor, też green screen)");
+    public static string ModeAi => T("AI – cut out the subject from any background (photos)", "AI – wytnij obiekt z dowolnego tła (zdjęcia)");
+    public static string ModeAuto => T("Auto – uniform background detected from the edges (green screens too)", "Auto – jednolite tło wykryte z krawędzi (też green screen)");
     public static string ModeGreen => T("Green screen", "Green screen (zielone tło)");
     public static string ModeBlue => T("Blue screen", "Blue screen (niebieskie tło)");
     public static string ModeCustom => T("Custom key colour", "Własny kolor klucza");

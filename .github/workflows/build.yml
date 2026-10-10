@@ -25,12 +25,15 @@ jobs:
           python-version: "3.12"
 
       - name: Install Python test dependencies
-        run: pip install pillow numpy
+        run: pip install pillow numpy onnx onnxruntime
 
       - name: Download Paint.NET (reference assemblies only)
         run: |
           curl -sSfL -o pdn.zip "https://github.com/paintdotnet/release/releases/download/v${PDN_VERSION}/paint.net.${PDN_VERSION}.portable.x64.zip"
           mkdir pdn && unzip -q pdn.zip -d pdn
+
+      - name: Fetch and convert the AI model (U²-Net)
+        run: tools/model/get_model.sh
 
       - name: Build plugin
         run: dotnet build src/UltraKey -c Release -p:PdnDir="$PWD/pdn"
@@ -40,6 +43,9 @@ jobs:
 
       - name: Matte quality regression tests
         run: python tests/run_tests.py tests/UltraKey.Cli/bin/Release/net9.0/UltraKey.Cli.dll
+
+      - name: AI engine matches onnxruntime
+        run: python tests/check_u2net.py tests/UltraKey.Cli/bin/Release/net9.0/UltraKey.Cli.dll tools/model/u2net.onnx tools/model/u2net.ukm
 
       - uses: actions/upload-artifact@v4
         with:

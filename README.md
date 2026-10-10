@@ -12,6 +12,12 @@ z winietą i zagięciem materiału. Dół: Auto na gradientowym tle studyjnym.*
 
 ## Co potrafi
 
+**Nowość w 1.2: tryb AI** (domyślny) – wycina obiekt ze zwykłego zdjęcia z dowolnym tłem (pokój, podłoga,
+plener). Działa na wbudowanej sieci U²-Net (Qin i in., 2020, licencja Apache-2.0) uruchamianej przez własny silnik
+w C# – bez dodatkowych bibliotek i bez internetu. Maska z sieci (320×320) jest potem dopracowywana na pikselach
+w pełnej rozdzielczości tymi samymi algorytmami co reszta pluginu. Pierwsze uruchomienie trwa kilka sekund;
+zmiana suwaków już nie uruchamia sieci ponownie.
+
 | Funkcja | Jak to działa |
 |---|---|
 | **Auto – wykrywanie tła** | Klastrowanie (k-means w Oklab) kolorów z krawędzi obrazu/zaznaczenia. Kolor uznaje za tło tylko, jeśli występuje na ≥ 2 bokach, więc obiekt ucięty dolną krawędzią (np. portret) nie jest brany za tło. Jeśli wykryje green/blue screen, sam przełącza się na chroma key. |
@@ -45,7 +51,8 @@ której wymaga DLL. Od wersji 1.0.1 plugin wymaga tylko 5.1.0; jeśli masz seri�
 
 ## Szybki start
 
-- **Zwykłe zdjęcie z jednolitym tłem** – zostaw *Auto* i ewentualnie dostosuj *Tolerancję*.
+- **Zwykłe zdjęcie (dowolne tło)** – zostaw *AI*.
+- **Jednolite tło (białe, szare, studyjne)** – *Auto* daje zwykle najdokładniejsze krawędzie.
 - **Green / blue screen** – *Auto* wykryje go sam; tryb *Green screen* / *Blue screen* wymusza to samo.
 - **Zostaje mgiełka tła** – zwiększ *Tolerancję* albo *Docisk tła*.
 - **Dziury w obiekcie** – zmniejsz *Tolerancję*, zwiększ *Docisk obiektu* albo ustaw *Tło zamknięte wewnątrz obiektu → Zostaw*.
@@ -66,6 +73,13 @@ Potrzebny .NET 9 SDK i pliki Paint.NET (zainstalowany program albo rozpakowany p
 # Linux/macOS (cross-build, tak jak w CI)
 dotnet build src/UltraKey -c Release -p:PdnDir=/ścieżka/do/rozpakowanego/paint.net
 ```
+
+### Model AI
+
+Model nie jest w repozytorium (88 MB). Przed budowaniem uruchom `tools/model/get_model.sh` (lub `.ps1`) –
+pobiera U²-Net z wydań projektu rembg i konwertuje go do `tools/model/u2net.ukm` (float16), który build osadza
+w DLL. Bez modelu plugin też się zbuduje, a tryb AI przełączy się na *Auto*. CI sprawdza, że silnik C# daje ten
+sam wynik co onnxruntime (`tests/check_u2net.py`).
 
 ### Testy
 

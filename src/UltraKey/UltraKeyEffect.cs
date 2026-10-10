@@ -62,7 +62,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
     {
         var props = new List<Property>
         {
-            StaticListChoiceProperty.CreateForEnum(PropertyNames.Mode, KeyMode.Auto),
+            StaticListChoiceProperty.CreateForEnum(PropertyNames.Mode, KeyMode.AiSubject),
             new Int32Property(PropertyNames.KeyColor, 0x00B140, 0, 0xFFFFFF),
             new DoubleVectorProperty(PropertyNames.PickPoint, new Vector2Double(-0.9, -0.9), new Vector2Double(-1, -1), new Vector2Double(1, 1)),
             new Int32Property(PropertyNames.Tolerance, 20, 0, 100),
@@ -106,6 +106,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
 
         Name(PropertyNames.Mode, Strings.Mode);
         var mode = ui.FindControlForPropertyName(PropertyNames.Mode)!;
+        mode.SetValueDisplayName(KeyMode.AiSubject, Strings.ModeAi);
         mode.SetValueDisplayName(KeyMode.Auto, Strings.ModeAuto);
         mode.SetValueDisplayName(KeyMode.GreenScreen, Strings.ModeGreen);
         mode.SetValueDisplayName(KeyMode.BlueScreen, Strings.ModeBlue);

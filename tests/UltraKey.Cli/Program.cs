@@ -7,6 +7,23 @@ using UltraKey.Core;
 
 // Usage: UltraKey.Cli <input.pam> <output.pam> [Property=Value ...]
 // Properties are the names of KeyerSettings members, e.g. Mode=GreenScreen Tolerance=25 Output=Matte.
+if (args.Length == 4 && args[0] == "u2net")
+{
+    // u2net <model.ukm> <input.f32 (3x320x320)> <output.f32>
+    using var ms = File.OpenRead(args[1]);
+    var net = UltraKey.Core.Ai.U2Net.Load(ms);
+    byte[] raw = File.ReadAllBytes(args[2]);
+    var inp = new float[raw.Length / 4];
+    Buffer.BlockCopy(raw, 0, inp, 0, raw.Length);
+    var t = Stopwatch.StartNew();
+    var res = net.Run(inp, default);
+    Console.WriteLine($"u2net inference {t.ElapsedMilliseconds} ms");
+    var outBytes = new byte[res.Length * 4];
+    Buffer.BlockCopy(res, 0, outBytes, 0, outBytes.Length);
+    File.WriteAllBytes(args[3], outBytes);
+    return 0;
+}
+
 if (args.Length < 2)
 {
     Console.Error.WriteLine("usage: UltraKey.Cli <input.pam> <output.pam> [Property=Value ...]");

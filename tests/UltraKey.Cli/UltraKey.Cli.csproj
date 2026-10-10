@@ -14,4 +14,12 @@
     <Compile Include="../../src/UltraKey/Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- AI subject model (U²-Net, Apache-2.0). Not in git: create it with tools/model/get_model.sh (or .ps1). -->
+  <PropertyGroup>
+    <UltraKeyModel Condition="'$(UltraKeyModel)' == ''">$(MSBuildThisFileDirectory)../../tools/model/u2net.ukm</UltraKeyModel>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(UltraKeyModel)')">
+    <EmbeddedResource Include="$(UltraKeyModel)" LogicalName="UltraKey.u2net.ukm" />
+  </ItemGroup>
+
 </Project>

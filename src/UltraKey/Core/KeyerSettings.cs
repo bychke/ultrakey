@@ -10,6 +10,9 @@ public enum KeyMode
     CustomColor = 3,
     PrimaryColor = 4,
     PickPoint = 5,
+
+    /// <summary>Neural subject segmentation (U²-Net) — photos with any background (rooms, floors, outdoors).</summary>
+    AiSubject = 6,
 }
 
 /// <summary>What to do with background-coloured areas that are fully enclosed by the subject.</summary>
@@ -32,7 +35,7 @@ public enum OutputMode
 /// <summary>All user-tweakable parameters. Percent values are 0..100.</summary>
 public sealed record KeyerSettings
 {
-    public KeyMode Mode { get; init; } = KeyMode.Auto;
+    public KeyMode Mode { get; init; } = KeyMode.AiSubject;
 
     /// <summary>0xRRGGBB</summary>
     public int CustomKeyRgb { get; init; } = 0x00B140;
