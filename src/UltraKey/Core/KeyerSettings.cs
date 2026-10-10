@@ -58,6 +58,9 @@ public sealed record KeyerSettings
     /// <summary>Islands / holes smaller than this many pixels are cleaned up.</summary>
     public int SpeckSize { get; init; }
 
+    /// <summary>Make the inside of the subject fully opaque; only the outline keeps partial alpha.</summary>
+    public bool SolidCore { get; init; } = true;
+
     public double EdgeDetail { get; init; } = 60;
 
     public int RefineRadius { get; init; } = 3;

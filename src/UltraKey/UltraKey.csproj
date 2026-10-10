@@ -18,7 +18,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>UltraKey</RootNamespace>
     <AssemblyName>UltraKey</AssemblyName>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Product>UltraKey</Product>
     <Description>Background remover and chroma key effect for Paint.NET</Description>
     <Copyright>MIT License</Copyright>

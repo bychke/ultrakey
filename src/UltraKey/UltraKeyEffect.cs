@@ -24,6 +24,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         UnevenCorrection,
         Enclosed,
         SpeckSize,
+        SolidCore,
         EdgeDetail,
         RefineRadius,
         ShrinkGrow,
@@ -70,6 +71,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
             new BooleanProperty(PropertyNames.UnevenCorrection, true),
             StaticListChoiceProperty.CreateForEnum(PropertyNames.Enclosed, EnclosedAreas.Smart),
             new Int32Property(PropertyNames.SpeckSize, 0, 0, 2000),
+            new BooleanProperty(PropertyNames.SolidCore, true),
             new Int32Property(PropertyNames.EdgeDetail, 60, 0, 100),
             new Int32Property(PropertyNames.RefineRadius, 3, 1, 30),
             new DoubleProperty(PropertyNames.ShrinkGrow, 0, -20, 20),
@@ -137,6 +139,8 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         enclosed.SetValueDisplayName(EnclosedAreas.Keep, Strings.EnclosedKeep);
 
         Name(PropertyNames.SpeckSize, Strings.Specks);
+        Name(PropertyNames.SolidCore, string.Empty);
+        Desc(PropertyNames.SolidCore, Strings.SolidCore);
         Name(PropertyNames.EdgeDetail, Strings.EdgeDetail);
         Name(PropertyNames.RefineRadius, Strings.RefineRadius);
         Name(PropertyNames.ShrinkGrow, Strings.ShrinkGrow);
@@ -192,6 +196,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
                 UnevenCorrection = Bool(newToken, PropertyNames.UnevenCorrection),
                 Enclosed = (EnclosedAreas)newToken.GetProperty<StaticListChoiceProperty>(PropertyNames.Enclosed)!.Value,
                 SpeckSize = Int(newToken, PropertyNames.SpeckSize),
+                SolidCore = Bool(newToken, PropertyNames.SolidCore),
                 EdgeDetail = Int(newToken, PropertyNames.EdgeDetail),
                 RefineRadius = Int(newToken, PropertyNames.RefineRadius),
                 ShrinkGrow = newToken.GetProperty<DoubleProperty>(PropertyNames.ShrinkGrow)!.Value,

@@ -72,6 +72,7 @@ internal sealed class KeyerRun
     private float pf;
 
     private float[] alpha = Array.Empty<float>();
+    private float[]? protectMask;
 
     // Effective mode: Auto switches to chroma keying when it finds a green / blue screen.
     private bool chromaMode;
@@ -107,6 +108,8 @@ internal sealed class KeyerRun
             Mark("plate");
         }
 
+        if (!chromaMode) AdaptToleranceToNoise(dist);
+
         alpha = new float[n];
         if (!(chromaMode && ColorDifferenceAlpha(dist)))
         {
@@ -137,10 +140,24 @@ internal sealed class KeyerRun
         if (s.EdgeDetail > 0)
         {
             ProjectEdges(dist);
+            Debug?.Invoke("alpha_proj", alpha, w, h);
             Mark("project");
             RefineWithGuidedFilter();
+            Debug?.Invoke("alpha_gf", alpha, w, h);
             Mark("guided");
         }
+
+        // Edge refinement must not reopen what the enclosed-area protection closed.
+        if (protectMask != null)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                if (protectMask[i] > alpha[i]) alpha[i] = protectMask[i];
+            }
+        }
+        if (s.SolidCore) FillSolidCore();
+        Debug?.Invoke("alpha_core", alpha, w, h);
+        Mark("core");
 
         AdjustMatte();
         Mark("adjust");
@@ -716,6 +733,44 @@ internal sealed class KeyerRun
         return true;
     }
 
+    /// <summary>
+    /// Auto mode: the tolerance must at least cover the backdrop's own variation (sensor noise, JPEG artefacts,
+    /// texture), measured on the background part of the image border. Oklab exaggerates noise in dark areas,
+    /// so a black backdrop otherwise leaves a speckled haze.
+    /// </summary>
+    private void AdaptToleranceToNoise(float[] dist)
+    {
+        // Pixel-to-pixel differences inside the background: smooth gradients contribute ~0, noise does not.
+        int band = Math.Clamp(Math.Min(w, h) / 100, 2, 8);
+        var samples = new List<float>();
+        float limit = (tol + soft) * 4f;
+        float[] L = labL!, A = labA!, B = labB!;
+        void Sample(int i, int j)
+        {
+            if (!Opaque(i) || !Opaque(j) || dist[i] >= limit || dist[j] >= limit) return;
+            samples.Add(Dist(L[i], A[i], B[i], new Lab(L[j], A[j], B[j])));
+        }
+        int stepX = Math.Max(1, w / 2000), stepY = Math.Max(1, h / 2000);
+        for (int b = 0; b < band; b++)
+        {
+            for (int x = 0; x + 1 < w; x += stepX)
+            {
+                Sample(b * w + x, b * w + x + 1);
+                Sample((h - 1 - b) * w + x, (h - 1 - b) * w + x + 1);
+            }
+            for (int y = 0; y + 1 < h; y += stepY)
+            {
+                Sample(y * w + b, (y + 1) * w + b);
+                Sample(y * w + w - 1 - b, (y + 1) * w + w - 1 - b);
+            }
+        }
+        if (samples.Count < 50) return;
+        samples.Sort();
+        float p90 = samples[(int)(samples.Count * 0.9)];
+        // Never let a noisy border swallow the subject.
+        tol = MathF.Max(tol, MathF.Min(1.5f * p90, 0.08f));
+    }
+
     // ------------------------------------------------------------------ matte cleanup
 
     /// <summary>
@@ -751,6 +806,30 @@ internal sealed class KeyerRun
         for (int i = 0; i < n; i++)
         {
             if (protect[i] > alpha[i]) alpha[i] = protect[i];
+        }
+        protectMask = protect;
+    }
+
+    /// <summary>
+    /// Core matte: the inside of the subject is always fully opaque. Colour keys cannot tell a grey, green-lit
+    /// subject from a mix of subject and screen pixel by pixel, which leaves see-through patches in fur, skin or
+    /// clothes; spatially, anything well inside the solid silhouette is subject. Only a band of a few pixels along
+    /// the outline keeps its soft, partial alpha (hair, fur, motion blur).
+    /// </summary>
+    private void FillSolidCore()
+    {
+        int rc = Math.Clamp((int)Math.Round(Math.Min(w, h) / 120.0), 2, 12);
+        var core = new float[n];
+        for (int i = 0; i < n; i++) core[i] = alpha[i] >= 0.3f ? 1f : 0f;
+        // Close see-through patches inside the silhouette before eroding — but only ones that are not clean
+        // background, so the gaps between hair strands stay open.
+        ImageOps.FillHoles(core, alpha, w, h, 64 * rc * rc, 0.12f, ct);
+        ImageOps.Morph(core, w, h, -rc, ct);
+        ImageOps.Morph(core, w, h, rc / 2, ct);
+        ImageOps.BoxBlur(core, w, h, 1, ct);
+        for (int i = 0; i < n; i++)
+        {
+            if (core[i] > alpha[i]) alpha[i] = core[i];
         }
     }
 
@@ -811,13 +890,18 @@ internal sealed class KeyerRun
     /// the local background B, and alpha is its position on the line B→F. This recovers true partial coverage
     /// of hair strands, motion blur and semi-transparent material.
     /// </summary>
+    private const float ApClip = 0.02f;
+
     private void ProjectEdges(float[] dist)
     {
         // Transition pixels, plus opaque pixels whose colour is still close to the background
         // (mixtures with a bright subject reach "opaque" distances long before full coverage).
         // The colour-difference matte of the chroma modes is already linear, so there it is only refined in the transition.
         float near = chromaMode ? 0f : tol + soft;
-        var band = Band(0.004f, 0.996f, 2, out bool any, dist, near);
+        // Plain backdrops: widen the band, since Oklab exaggerates small brightness differences near black and
+        // white, a fibre covering a fraction of a pixel can look fully opaque by colour distance alone.
+        int widen = chromaMode ? 2 : 2 + (int)Math.Round(4 * Math.Clamp(s.EdgeDetail / 100.0, 0, 1));
+        var band = Band(0.004f, 0.996f, widen, out bool any, dist, near);
         if (!any) return;
 
         // Local subject colour: interpolate the colours of confidently opaque pixels (push-pull at low resolution).
@@ -886,7 +970,9 @@ internal sealed class KeyerRun
             if (!ImageOps.PushPull(new[] { br0, bg0, bb0 }, bw, lw, lh)) return;
         }
 
-        float mix = (float)Math.Clamp(s.EdgeDetail / 100.0, 0, 1);
+        // Plain backdrops: the linear colour-line alpha is the physically right estimate in the band, trust it
+        // fully from "edge detail" 50 up. Chroma keys already have a linear matte, so it is only blended in.
+        float mix = (float)Math.Clamp(s.EdgeDetail / (chromaMode ? 100.0 : 50.0), 0, 1);
         float ff = f;
         var result = (float[])alpha.Clone();
         Parallel.For(0, h, po, y =>
@@ -918,7 +1004,7 @@ internal sealed class KeyerRun
                 float n2 = dr * dr + dg * dg + db * db;
                 if (n2 < 1e-6f) continue;
                 float ap = ((cr - br) * dr + (cg - bgc) * dg + (cb - bb) * db) / n2;
-                ap = ColorMath.Clamp01((ap - 0.02f) / 0.96f);
+                ap = ColorMath.Clamp01((ap - ApClip) / (1f - 2f * ApClip));
                 float conf = n2 / (n2 + 0.01f);
                 float a0 = alpha[i];
                 float refined = conf * ap + (1f - conf) * a0;
@@ -935,7 +1021,20 @@ internal sealed class KeyerRun
         if (!any) return;
         double m = Math.Clamp(s.EdgeDetail / 100.0, 0, 1);
         float eps = (float)Math.Pow(10, -1.5 - 2.5 * m);
+        var before = (float[])alpha.Clone();
         GuidedFilter.Apply(px, alpha, band, w, h, r, eps, ct);
+        // The filter fits a linear model per window; on clean background (or solid subject) next to an edge
+        // that leaves a faint haze. Only let it change confident pixels when it means it.
+        Parallel.For(0, h, po, y =>
+        {
+            int row = y * w;
+            for (int x = 0; x < w; x++)
+            {
+                int i = row + x;
+                if (before[i] <= 0f && alpha[i] < 0.15f) alpha[i] = 0f;
+                else if (before[i] >= 1f && alpha[i] > 0.85f) alpha[i] = 1f;
+            }
+        });
     }
 
     private void AdjustMatte()
@@ -1002,7 +1101,7 @@ internal sealed class KeyerRun
                 if (!invert)
                 {
                     float fr = cr, fg = cg, fb = cb;
-                    if (fp != null)
+                    if (fp != null && a < 0.999f)
                     {
                         fr += (fp.R[i] - cr) * decon;
                         fg += (fp.G[i] - cg) * decon;

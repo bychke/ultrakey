@@ -37,6 +37,7 @@ internal static class Strings
     public static string EnclosedKeep => T("Keep (protect the subject)", "Zostaw (chroń obiekt)");
     public static string Specks => T("Clean up specks / holes smaller than (px)", "Usuń drobinki / dziury mniejsze niż (px)");
 
+    public static string SolidCore => T("Solid subject (no see-through patches inside, only edges stay soft)", "Lity obiekt (bez prześwitów w środku, miękkie tylko krawędzie)");
     public static string EdgeDetail => T("Edge detail (hair, fur)", "Detal krawędzi (włosy, sierść)");
     public static string RefineRadius => T("Edge refine radius", "Promień dopasowania krawędzi");
     public static string ShrinkGrow => T("Shrink (-) / grow (+) matte", "Zmniejsz (-) / powiększ (+) maskę");

@@ -401,6 +401,55 @@ internal static class ImageOps
         }
     }
 
+    /// <summary>
+    /// Fills holes (4-connected zero regions of <paramref name="mask"/>) that are smaller than
+    /// <paramref name="maxSize"/> pixels and whose mean <paramref name="values"/> is at least <paramref name="minMean"/>.
+    /// Holes touching the image border are never filled.
+    /// </summary>
+    public static void FillHoles(float[] mask, float[] values, int w, int h, int maxSize, float minMean, CancellationToken ct)
+    {
+        int n = w * h;
+        var visited = new byte[n];
+        var stack = new int[n];
+        var members = new int[maxSize];
+        for (int start = 0; start < n; start++)
+        {
+            if (visited[start] != 0 || mask[start] >= 0.5f) continue;
+            if ((start & 0xFFFF) == 0) ct.ThrowIfCancellationRequested();
+            int sp = 0, count = 0;
+            double sum = 0;
+            bool border = false;
+            stack[sp++] = start;
+            visited[start] = 1;
+            while (sp > 0)
+            {
+                int i = stack[--sp];
+                if (count < maxSize) members[count] = i;
+                count++;
+                sum += values[i];
+                int x = i % w, y = i / w;
+                if (x == 0 || y == 0 || x == w - 1 || y == h - 1) border = true;
+                if (x > 0) Visit(i - 1);
+                if (x < w - 1) Visit(i + 1);
+                if (y > 0) Visit(i - w);
+                if (y < h - 1) Visit(i + w);
+            }
+            if (!border && count < maxSize && sum / count >= minMean)
+            {
+                for (int k = 0; k < count; k++) mask[members[k]] = 1f;
+            }
+
+            void Visit(int j)
+            {
+                if (visited[j] == 0 && mask[j] < 0.5f)
+                {
+                    visited[j] = 1;
+                    stack[sp++] = j;
+                }
+            }
+        }
+    }
+
     /// <summary>Bilinear sample of a low-resolution grid that covers the full-resolution image with block size <paramref name="factor"/>.</summary>
     public static float SampleBilinear(float[] grid, int gw, int gh, float factor, int x, int y)
     {

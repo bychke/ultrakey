@@ -20,6 +20,8 @@ z winietą i zagięciem materiału. Dół: Auto na gradientowym tle studyjnym.*
 | **Detal krawędzi (włosy, sierść)** | Alfa z projekcji na linię kolorów tło→obiekt + kolorowy guided filter (He i in.), który dopasowuje maskę do prawdziwych krawędzi. |
 | **Oczyszczanie koloru krawędzi** | Wielopoziomowa estymacja koloru pierwszego planu (Germer i in., 2020) – z półprzezroczystych pikseli znika kolor starego tła, więc nie ma obwódek na nowym tle. |
 | **Despill** | Uogólnione tłumienie poświaty (G dla zielonego, B dla niebieskiego, G+B dla cyjanu …) z zachowaniem jasności. |
+| **Lity obiekt (core matte)** | Wnętrze obiektu jest zawsze w 100 % kryjące; miękka alfa zostaje tylko w pasie przy krawędzi. Szare/białe futro czy skóra z zielonym odblaskiem nie robią się półprzezroczyste ani fioletowe. |
+| **Odporność na JPEG i szum** | Tolerancja w Auto kalibruje się do szumu tła (np. artefaktów JPEG na czarnym tle); przy krawędziach alfa liczona liniowo w świetle, więc nie zostaje „mgiełka”. |
 | **Ochrona wnętrza obiektu** | Tło zamknięte wewnątrz obiektu (np. biała koszula na białym tle) jest chronione, ale kieszenie tła między włosami są usuwane. |
 | **Zachowanie cieni** | Cienie rzucone na tło można zostawić jako półprzezroczystą czerń. |
 | **Narzędzia maski** | Docisk tła/obiektu, zmniejsz/powiększ, wygładzenie, usuwanie drobinek i dziur, odwrócenie. |
@@ -69,7 +71,8 @@ dotnet build src/UltraKey -c Release -p:PdnDir=/ścieżka/do/rozpakowanego/paint
 
 Algorytm (`src/UltraKey/Core`) nie zależy od Paint.NET, więc jest testowany na dowolnym systemie.
 `tests/tools/make_samples.py` generuje sceny z prawdziwą maską (włosy, półprzezroczyste szkło, winieta,
-poświata, gradienty), a `tests/run_tests.py` sprawdza błąd maski:
+poświata, gradienty), `tests/tools/make_fur.py` – futro z zielonym odblaskiem i kompresją JPEG 4:2:0 na
+zielonym, czarnym i białym tle, a `tests/run_tests.py` sprawdza błąd maski, prześwity, mgiełkę i fioletowe krawędzie:
 
 ```bash
 dotnet build tests/UltraKey.Cli -c Release
