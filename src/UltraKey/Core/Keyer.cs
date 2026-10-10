@@ -198,6 +198,7 @@ internal sealed class KeyerRun
             for (int x = 0; x < w; x++) alpha[row + x] = ColorMath.SmoothStep(t0, t1, mask[row + x]);
         });
         ImageOps.RemoveSmallComponents(alpha, w, h, s.SpeckSize, ct);
+        ApplyAiHints();
         Debug?.Invoke("alpha0", alpha, w, h);
 
         if (s.EdgeDetail > 0)
@@ -212,6 +213,42 @@ internal sealed class KeyerRun
         var output = Compose();
         Mark("compose");
         return output;
+    }
+
+    private (int x, int y) PointToPixel(double px1, double py1) =>
+        (Math.Clamp((int)Math.Round((px1 + 1) * 0.5 * (w - 1)), 0, w - 1),
+         Math.Clamp((int)Math.Round((py1 + 1) * 0.5 * (h - 1)), 0, h - 1));
+
+    /// <summary>User hints for AI mode: add the object under the "keep" point, drop the one under the "remove" point.</summary>
+    private void ApplyAiHints()
+    {
+        if (s.KeepPointOn)
+        {
+            var (kx, ky) = PointToPixel(s.KeepX, s.KeepY);
+            float[]? obj = Ai.AiSegmenter.ObjectAt(px, w, h, kx, ky, ct);
+            if (obj != null)
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    if (obj[i] > alpha[i]) alpha[i] = obj[i];
+                }
+            }
+        }
+        if (s.RemovePointOn)
+        {
+            var (rx, ry) = PointToPixel(s.RemoveX, s.RemoveY);
+            byte[]? comp = ImageOps.ComponentAt(alpha, w, h, rx, ry, 0.5f, out _);
+            if (comp != null)
+            {
+                var grow = new float[n];
+                for (int i = 0; i < n; i++) grow[i] = comp[i];
+                ImageOps.Morph(grow, w, h, 3, ct);
+                for (int i = 0; i < n; i++)
+                {
+                    if (grow[i] > 0f) alpha[i] = 0f;
+                }
+            }
+        }
     }
 
     // ------------------------------------------------------------------ colour space

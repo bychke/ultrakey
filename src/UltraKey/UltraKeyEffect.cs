@@ -18,6 +18,10 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         Mode,
         KeyColor,
         PickPoint,
+        KeepPointOn,
+        KeepPoint,
+        RemovePointOn,
+        RemovePoint,
         Tolerance,
         Softness,
         LumaSensitivity,
@@ -65,6 +69,10 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
             StaticListChoiceProperty.CreateForEnum(PropertyNames.Mode, KeyMode.AiSubject),
             new Int32Property(PropertyNames.KeyColor, 0x00B140, 0, 0xFFFFFF),
             new DoubleVectorProperty(PropertyNames.PickPoint, new Vector2Double(-0.9, -0.9), new Vector2Double(-1, -1), new Vector2Double(1, 1)),
+            new BooleanProperty(PropertyNames.KeepPointOn, false),
+            new DoubleVectorProperty(PropertyNames.KeepPoint, new Vector2Double(0, -0.5), new Vector2Double(-1, -1), new Vector2Double(1, 1)),
+            new BooleanProperty(PropertyNames.RemovePointOn, false),
+            new DoubleVectorProperty(PropertyNames.RemovePoint, new Vector2Double(0.5, 0), new Vector2Double(-1, -1), new Vector2Double(1, 1)),
             new Int32Property(PropertyNames.Tolerance, 20, 0, 100),
             new Int32Property(PropertyNames.Softness, 30, 0, 100),
             new Int32Property(PropertyNames.LumaSensitivity, 40, 0, 100),
@@ -90,6 +98,10 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         {
             new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.KeyColor, PropertyNames.Mode, KeyMode.CustomColor, inverse: true),
             new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.PickPoint, PropertyNames.Mode, KeyMode.PickPoint, inverse: true),
+            new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.KeepPointOn, PropertyNames.Mode, KeyMode.AiSubject, inverse: true),
+            new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.RemovePointOn, PropertyNames.Mode, KeyMode.AiSubject, inverse: true),
+            new ReadOnlyBoundToBooleanRule(PropertyNames.KeepPoint, PropertyNames.KeepPointOn, inverse: true),
+            new ReadOnlyBoundToBooleanRule(PropertyNames.RemovePoint, PropertyNames.RemovePointOn, inverse: true),
             new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.BackdropColor, PropertyNames.Output, OutputMode.OverColor, inverse: true),
             new ReadOnlyBoundToBooleanRule(PropertyNames.Shadows, PropertyNames.Invert, inverse: false),
         };
@@ -117,12 +129,30 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         Name(PropertyNames.KeyColor, Strings.KeyColor);
         ui.SetPropertyControlType(PropertyNames.KeyColor, PropertyControlType.ColorWheel);
 
-        Name(PropertyNames.PickPoint, Strings.PickPoint);
-        ui.SetPropertyControlValue(PropertyNames.PickPoint, ControlInfoPropertyNames.SliderSmallChangeX, 0.01);
-        ui.SetPropertyControlValue(PropertyNames.PickPoint, ControlInfoPropertyNames.SliderSmallChangeY, 0.01);
-        ui.SetPropertyControlValue(PropertyNames.PickPoint, ControlInfoPropertyNames.UpDownIncrementX, 0.01);
-        ui.SetPropertyControlValue(PropertyNames.PickPoint, ControlInfoPropertyNames.UpDownIncrementY, 0.01);
-        ui.SetPropertyControlValue(PropertyNames.PickPoint, ControlInfoPropertyNames.DecimalPlaces, 3);
+        // Point pickers show the image, so the point is chosen by clicking on the thumbnail.
+        IBitmapSource? underlay = null;
+        try
+        {
+            underlay = Environment.GetSourceBitmapBgra32();
+        }
+        catch (Exception)
+        {
+            // No thumbnail: the pickers still work with the sliders.
+        }
+        foreach (var (p, text) in new[] { (PropertyNames.PickPoint, Strings.PickPoint), (PropertyNames.KeepPoint, Strings.KeepPoint), (PropertyNames.RemovePoint, Strings.RemovePoint) })
+        {
+            Name(p, text);
+            if (underlay != null) ui.SetPropertyControlValue(p, ControlInfoPropertyNames.StaticImageUnderlay, underlay);
+            ui.SetPropertyControlValue(p, ControlInfoPropertyNames.SliderSmallChangeX, 0.01);
+            ui.SetPropertyControlValue(p, ControlInfoPropertyNames.SliderSmallChangeY, 0.01);
+            ui.SetPropertyControlValue(p, ControlInfoPropertyNames.UpDownIncrementX, 0.01);
+            ui.SetPropertyControlValue(p, ControlInfoPropertyNames.UpDownIncrementY, 0.01);
+            ui.SetPropertyControlValue(p, ControlInfoPropertyNames.DecimalPlaces, 3);
+        }
+        Name(PropertyNames.KeepPointOn, string.Empty);
+        Desc(PropertyNames.KeepPointOn, Strings.KeepPointOn);
+        Name(PropertyNames.RemovePointOn, string.Empty);
+        Desc(PropertyNames.RemovePointOn, Strings.RemovePointOn);
 
         Name(PropertyNames.Tolerance, Strings.Tolerance);
         Desc(PropertyNames.Tolerance, Strings.ToleranceHint);
@@ -183,6 +213,8 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         {
             ColorBgra32 primary = Environment.PrimaryColor.GetBgra32(Environment.Document.ColorContext);
             Vector2Double pick = newToken.GetProperty<DoubleVectorProperty>(PropertyNames.PickPoint)!.Value;
+            Vector2Double keep = newToken.GetProperty<DoubleVectorProperty>(PropertyNames.KeepPoint)!.Value;
+            Vector2Double remove = newToken.GetProperty<DoubleVectorProperty>(PropertyNames.RemovePoint)!.Value;
 
             var next = new KeyerSettings
             {
@@ -191,6 +223,12 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
                 PrimaryRgb = (primary.R << 16) | (primary.G << 8) | primary.B,
                 PickX = pick.X,
                 PickY = pick.Y,
+                KeepPointOn = Bool(newToken, PropertyNames.KeepPointOn),
+                KeepX = keep.X,
+                KeepY = keep.Y,
+                RemovePointOn = Bool(newToken, PropertyNames.RemovePointOn),
+                RemoveX = remove.X,
+                RemoveY = remove.Y,
                 Tolerance = Int(newToken, PropertyNames.Tolerance),
                 Softness = Int(newToken, PropertyNames.Softness),
                 LumaSensitivity = Int(newToken, PropertyNames.LumaSensitivity),
@@ -264,7 +302,17 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
                 }
             }
 
-            uint[]? computed = Keyer.Process(pixels, rect.Width, rect.Height, settings, CancellationToken);
+            // Point pickers are relative to the whole image; the keyer works on the selection's bounds.
+            SizeInt32 doc = source.Size;
+            double Rx(double v) => ToRegion(v, doc.Width, rect.Left, rect.Width);
+            double Ry(double v) => ToRegion(v, doc.Height, rect.Top, rect.Height);
+            var run = settings with
+            {
+                PickX = Rx(settings.PickX), PickY = Ry(settings.PickY),
+                KeepX = Rx(settings.KeepX), KeepY = Ry(settings.KeepY),
+                RemoveX = Rx(settings.RemoveX), RemoveY = Ry(settings.RemoveY),
+            };
+            uint[]? computed = Keyer.Process(pixels, rect.Width, rect.Height, run, CancellationToken);
             if (computed != null)
             {
                 result = computed;
@@ -273,6 +321,12 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
             }
             return computed;
         }
+    }
+
+    private static double ToRegion(double v, int docSize, int start, int size)
+    {
+        double pixel = (v + 1) * 0.5 * (docSize - 1);
+        return size > 1 ? Math.Clamp((pixel - start) / (size - 1) * 2 - 1, -1, 1) : 0;
     }
 
     protected override void OnRender(IBitmapEffectOutput output)

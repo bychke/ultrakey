@@ -24,6 +24,10 @@ internal static class Strings
     public static string KeyColor => T("Key colour", "Kolor klucza");
     public static string PickPoint => T("Background sample point", "Punkt próbki tła");
 
+    public static string KeepPointOn => T("AI: also keep the object at this point (e.g. a logo or caption)", "AI: zachowaj też obiekt w tym punkcie (np. napis, logo)");
+    public static string KeepPoint => T("Keep object at (click the thumbnail)", "Zachowaj obiekt w punkcie (kliknij miniaturkę)");
+    public static string RemovePointOn => T("AI: remove the object at this point", "AI: usuń obiekt w tym punkcie");
+    public static string RemovePoint => T("Remove object at (click the thumbnail)", "Usuń obiekt w punkcie (kliknij miniaturkę)");
     public static string Tolerance => T("Tolerance", "Tolerancja");
     public static string ToleranceHint => T("Higher = removes more of the background.", "Więcej = usuwa więcej tła.");
     public static string Softness => T("Edge softness", "Miękkość krawędzi");

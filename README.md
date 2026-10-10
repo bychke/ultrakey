@@ -52,6 +52,9 @@ której wymaga DLL. Od wersji 1.0.1 plugin wymaga tylko 5.1.0; jeśli masz seri�
 ## Szybki start
 
 - **Zwykłe zdjęcie (dowolne tło)** – zostaw *AI*.
+- **AI pominęło coś, co chcesz zostawić (napis, logo)** – zaznacz *AI: zachowaj też obiekt w tym punkcie* i kliknij
+  ten obiekt na miniaturce. *AI: usuń obiekt w tym punkcie* działa odwrotnie. Możesz też najpierw zaznaczyć w
+  Paint.NET obszar – efekt działa tylko w zaznaczeniu.
 - **Jednolite tło (białe, szare, studyjne)** – *Auto* daje zwykle najdokładniejsze krawędzie.
 - **Green / blue screen** – *Auto* wykryje go sam; tryb *Green screen* / *Blue screen* wymusza to samo.
 - **Zostaje mgiełka tła** – zwiększ *Tolerancję* albo *Docisk tła*.

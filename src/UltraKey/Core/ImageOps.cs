@@ -450,6 +450,40 @@ internal static class ImageOps
         }
     }
 
+    /// <summary>
+    /// 4-connected component of pixels with value ≥ <paramref name="threshold"/> that contains (x, y).
+    /// Returns null when that pixel is below the threshold. <paramref name="touchesBorder"/> reports whether the
+    /// component reaches the edge of the array.
+    /// </summary>
+    public static byte[]? ComponentAt(float[] values, int w, int h, int x, int y, float threshold, out bool touchesBorder)
+    {
+        touchesBorder = false;
+        if ((uint)x >= (uint)w || (uint)y >= (uint)h || values[y * w + x] < threshold) return null;
+        var comp = new byte[w * h];
+        var stack = new Stack<int>();
+        stack.Push(y * w + x);
+        comp[y * w + x] = 1;
+        while (stack.Count > 0)
+        {
+            int i = stack.Pop();
+            int cx = i % w, cy = i / w;
+            if (cx == 0 || cy == 0 || cx == w - 1 || cy == h - 1) touchesBorder = true;
+            void Visit(int j)
+            {
+                if (comp[j] == 0 && values[j] >= threshold)
+                {
+                    comp[j] = 1;
+                    stack.Push(j);
+                }
+            }
+            if (cx > 0) Visit(i - 1);
+            if (cx < w - 1) Visit(i + 1);
+            if (cy > 0) Visit(i - w);
+            if (cy < h - 1) Visit(i + w);
+        }
+        return comp;
+    }
+
     /// <summary>Bilinear sample of a low-resolution grid that covers the full-resolution image with block size <paramref name="factor"/>.</summary>
     public static float SampleBilinear(float[] grid, int gw, int gh, float factor, int x, int y)
     {

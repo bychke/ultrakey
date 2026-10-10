@@ -48,6 +48,20 @@ public sealed record KeyerSettings
 
     public double PickY { get; init; }
 
+    /// <summary>AI mode: also keep the object under this point (-1..1 relative to the processed region).</summary>
+    public bool KeepPointOn { get; init; }
+
+    public double KeepX { get; init; }
+
+    public double KeepY { get; init; }
+
+    /// <summary>AI mode: remove the object under this point.</summary>
+    public bool RemovePointOn { get; init; }
+
+    public double RemoveX { get; init; }
+
+    public double RemoveY { get; init; }
+
     public double Tolerance { get; init; } = 20;
 
     public double Softness { get; init; } = 30;
