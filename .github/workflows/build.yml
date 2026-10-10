@@ -30,7 +30,10 @@ jobs:
       - name: Download Paint.NET (reference assemblies only)
         run: |
           curl -sSfL -o pdn.zip "https://github.com/paintdotnet/release/releases/download/v${PDN_VERSION}/paint.net.${PDN_VERSION}.portable.x64.zip"
-          mkdir pdn && unzip -q pdn.zip -d pdn
+          mkdir pdn
+          # the ZIP uses backslash separators: unzip warns (exit code 1) but extracts correctly
+          unzip -q pdn.zip -d pdn || [ $? -eq 1 ]
+          test -f pdn/PaintDotNet.Core.dll
 
       - name: Fetch and convert the AI model (U²-Net)
         run: tools/model/get_model.sh
