@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    UltraKey – background remover / chroma key effect for Paint.NET 5.1+.
+
+    Paint.NET's assemblies are referenced from an installation (or extracted portable ZIP):
+      dotnet build -c Release -p:PdnDir="C:\Program Files\paint.net"
+    The output UltraKey.dll goes into "<Documents>\paint.net App Files\Effects" (or "<PdnDir>\Effects").
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>UltraKey</RootNamespace>
+    <AssemblyName>UltraKey</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>UltraKey</Product>
+    <Description>Background remover and chroma key effect for Paint.NET</Description>
+    <Copyright>MIT License</Copyright>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Paint.NET itself references an older System.Runtime.Serialization.Formatters facade; harmless. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <PdnDir Condition="'$(PdnDir)' == ''">C:\Program Files\paint.net</PdnDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Icon.png" LogicalName="UltraKey.Icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="PaintDotNet.Base"><HintPath>$(PdnDir)\PaintDotNet.Base.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.ComponentModel"><HintPath>$(PdnDir)\PaintDotNet.ComponentModel.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Core"><HintPath>$(PdnDir)\PaintDotNet.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Effects.Core"><HintPath>$(PdnDir)\PaintDotNet.Effects.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Framework"><HintPath>$(PdnDir)\PaintDotNet.Framework.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Fundamentals"><HintPath>$(PdnDir)\PaintDotNet.Fundamentals.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.ObjectModel"><HintPath>$(PdnDir)\PaintDotNet.ObjectModel.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Primitives"><HintPath>$(PdnDir)\PaintDotNet.Primitives.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.PropertySystem"><HintPath>$(PdnDir)\PaintDotNet.PropertySystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Windows"><HintPath>$(PdnDir)\PaintDotNet.Windows.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Windows.Core"><HintPath>$(PdnDir)\PaintDotNet.Windows.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PaintDotNet.Windows.Framework"><HintPath>$(PdnDir)\PaintDotNet.Windows.Framework.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+</Project>

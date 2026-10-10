@@ -1,0 +1,47 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PDN_VERSION: 5.1.12
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test dependencies
+        run: pip install pillow numpy
+
+      - name: Download Paint.NET (reference assemblies only)
+        run: |
+          curl -sSfL -o pdn.zip "https://github.com/paintdotnet/release/releases/download/v${PDN_VERSION}/paint.net.${PDN_VERSION}.portable.x64.zip"
+          mkdir pdn && unzip -q pdn.zip -d pdn
+
+      - name: Build plugin
+        run: dotnet build src/UltraKey -c Release -p:PdnDir="$PWD/pdn"
+
+      - name: Build test harness
+        run: dotnet build tests/UltraKey.Cli -c Release
+
+      - name: Matte quality regression tests
+        run: python tests/run_tests.py tests/UltraKey.Cli/bin/Release/net9.0/UltraKey.Cli.dll
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltraKey-plugin
+          path: src/UltraKey/bin/Release/net9.0-windows/UltraKey.dll
