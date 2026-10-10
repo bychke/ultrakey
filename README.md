@@ -12,7 +12,15 @@ z winietą i zagięciem materiału. Dół: Auto na gradientowym tle studyjnym.*
 
 ## Co potrafi
 
-**Nowość w 1.2: tryb AI** (domyślny) – wycina obiekt ze zwykłego zdjęcia z dowolnym tłem (pokój, podłoga,
+**Nowość w 1.4: BiRefNet** – tryb AI korzysta teraz z sieci BiRefNet (Zheng i in., 2024, licencja MIT), jednego
+z najlepszych otwartych modeli do wycinania tła. Na scenach testowych błąd maski jest 1,5–3× mniejszy niż z U²-Net,
+szczególnie na włosach i futrze, a obiekty w tle (np. ludzie za wokalistą) nie są już dołączane. Działa przez
+ONNX Runtime z DirectML na każdej karcie z DirectX 12 (NVIDIA/AMD/Intel, bez CUDA), a bez niej na procesorze.
+Czasy (GTX 1660 Super): BiRefNet ok. 5–8 s, BiRefNet lite ok. 1–2 s; procesor: ok. 20 s / 8 s. Modele (600 MB)
+pobiera `install.ps1` do `%LOCALAPPDATA%\UltraKey\models`; bez nich używany jest wbudowany U²-Net. Wybór modelu:
+zakładka *Tło* → *Model AI*. Nieużywany model zwalnia pamięć karty po 2 minutach.
+
+**Tryb AI od 1.2** (domyślny) – wycina obiekt ze zwykłego zdjęcia z dowolnym tłem (pokój, podłoga,
 plener). Działa na wbudowanej sieci U²-Net (Qin i in., 2020, licencja Apache-2.0) uruchamianej przez własny silnik
 w C# – bez dodatkowych bibliotek i bez internetu. Maska z sieci (320×320) jest potem dopracowywana na pikselach
 w pełnej rozdzielczości tymi samymi algorytmami co reszta pluginu. Pierwsze uruchomienie trwa kilka sekund;
@@ -37,6 +45,11 @@ Działa na zaznaczeniu: jeśli zaznaczysz prostokąt wokół obiektu, tło jest 
 Interfejs jest po polsku, gdy Paint.NET działa po polsku, w pozostałych przypadkach po angielsku.
 
 ## Instalacja
+
+Najprościej: sklonuj repozytorium i uruchom `powershell -ExecutionPolicy Bypass -File install.ps1` – kopiuje wtyczkę
+do Paint.NET i pobiera modele BiRefNet (`install.ps1 -ModelsOnly` pobiera tylko modele).
+
+Ręcznie:
 
 1. Pobierz `UltraKey.dll` (zakładka **Actions** → ostatni build → artefakt *UltraKey-plugin*, albo zbuduj sam – niżej).
 2. Skopiuj go do `Dokumenty\paint.net App Files\Effects` (utwórz folder, jeśli go nie ma)
@@ -78,6 +91,12 @@ dotnet build src/UltraKey -c Release -p:PdnDir=/ścieżka/do/rozpakowanego/paint
 ```
 
 ### Model AI
+
+BiRefNet (float16, eksport ONNX z Hugging Face `onnx-community/BiRefNet-ONNX` i `BiRefNet_lite-ONNX`) nie jest
+osadzany – pobiera go `install.ps1` (wersje przypięte do commita, sprawdzane SHA-256). ONNX Runtime 1.24.4 z
+DirectML jest osadzony w DLL (skompresowany) i przy pierwszym użyciu rozpakowywany do
+`%LOCALAPPDATA%\UltraKey\runtime`, bo Paint.NET ładuje tylko sam plik wtyczki.
+
 
 Model nie jest w repozytorium (88 MB). Przed budowaniem uruchom `tools/model/get_model.sh` (lub `.ps1`) –
 pobiera U²-Net z wydań projektu rembg i konwertuje go do `tools/model/u2net.ukm` (float16), który build osadza

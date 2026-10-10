@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using PaintDotNet;
 using PaintDotNet.Effects;
 using PaintDotNet.Imaging;
@@ -16,6 +17,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
     private enum PropertyNames
     {
         Mode,
+        AiModel,
         KeyColor,
         PickPoint,
         KeepPointOn,
@@ -41,6 +43,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         Invert,
         Output,
         BackdropColor,
+        TabState,
     }
 
     private readonly object sync = new();
@@ -67,6 +70,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         var props = new List<Property>
         {
             StaticListChoiceProperty.CreateForEnum(PropertyNames.Mode, KeyMode.AiSubject),
+            StaticListChoiceProperty.CreateForEnum(PropertyNames.AiModel, AiModel.BiRefNet),
             new Int32Property(PropertyNames.KeyColor, 0x00B140, 0, 0xFFFFFF),
             new DoubleVectorProperty(PropertyNames.PickPoint, new Vector2Double(-0.9, -0.9), new Vector2Double(-1, -1), new Vector2Double(1, 1)),
             new BooleanProperty(PropertyNames.KeepPointOn, false),
@@ -92,10 +96,12 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
             new BooleanProperty(PropertyNames.Invert, false),
             StaticListChoiceProperty.CreateForEnum(PropertyNames.Output, OutputMode.Result),
             new Int32Property(PropertyNames.BackdropColor, 0xFFFFFF, 0, 0xFFFFFF),
+            new TabContainerStateProperty(PropertyNames.TabState),
         };
 
         var rules = new List<PropertyCollectionRule>
         {
+            new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.AiModel, PropertyNames.Mode, KeyMode.AiSubject, inverse: true),
             new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.KeyColor, PropertyNames.Mode, KeyMode.CustomColor, inverse: true),
             new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.PickPoint, PropertyNames.Mode, KeyMode.PickPoint, inverse: true),
             new ReadOnlyBoundToValueRule<object, StaticListChoiceProperty>(PropertyNames.KeepPointOn, PropertyNames.Mode, KeyMode.AiSubject, inverse: true),
@@ -111,7 +117,8 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
 
     protected override ControlInfo OnCreateConfigUI(PropertyCollection props)
     {
-        ControlInfo ui = CreateDefaultConfigUI(props);
+        // The tab state is not a setting with a control of its own; it only remembers the selected tab.
+        ControlInfo ui = ControlInfo.CreateDefaultConfigUI(props.Where(p => !Equals(p.Name, PropertyNames.TabState.ToString())));
 
         void Name(PropertyNames p, string text) => ui.SetPropertyControlValue(p, ControlInfoPropertyNames.DisplayName, text);
         void Desc(PropertyNames p, string text) => ui.SetPropertyControlValue(p, ControlInfoPropertyNames.Description, text);
@@ -125,6 +132,13 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         mode.SetValueDisplayName(KeyMode.CustomColor, Strings.ModeCustom);
         mode.SetValueDisplayName(KeyMode.PrimaryColor, Strings.ModePrimary);
         mode.SetValueDisplayName(KeyMode.PickPoint, Strings.ModePick);
+
+        Name(PropertyNames.AiModel, Strings.AiModel);
+        Desc(PropertyNames.AiModel, AiStatus());
+        var aiModel = ui.FindControlForPropertyName(PropertyNames.AiModel)!;
+        aiModel.SetValueDisplayName(AiModel.BiRefNet, Strings.AiBiRefNet);
+        aiModel.SetValueDisplayName(AiModel.BiRefNetLite, Strings.AiBiRefNetLite);
+        aiModel.SetValueDisplayName(AiModel.U2Net, Strings.AiU2Net);
 
         Name(PropertyNames.KeyColor, Strings.KeyColor);
         ui.SetPropertyControlType(PropertyNames.KeyColor, PropertyControlType.ColorWheel);
@@ -197,7 +211,66 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
         Name(PropertyNames.BackdropColor, Strings.Backdrop);
         ui.SetPropertyControlType(PropertyNames.BackdropColor, PropertyControlType.ColorWheel);
 
-        return ui;
+        return Tabbed((PanelControlInfo)ui, props, new[]
+        {
+            (Strings.TabBackground, new[]
+            {
+                PropertyNames.Mode, PropertyNames.AiModel, PropertyNames.KeyColor, PropertyNames.Tolerance, PropertyNames.Softness,
+                PropertyNames.LumaSensitivity, PropertyNames.UnevenCorrection,
+            }),
+            (Strings.TabPoints, new[]
+            {
+                PropertyNames.PickPoint, PropertyNames.KeepPointOn, PropertyNames.KeepPoint,
+                PropertyNames.RemovePointOn, PropertyNames.RemovePoint,
+            }),
+            (Strings.TabMatte, new[]
+            {
+                PropertyNames.Enclosed, PropertyNames.SpeckSize, PropertyNames.SolidCore, PropertyNames.EdgeDetail,
+                PropertyNames.RefineRadius, PropertyNames.ShrinkGrow, PropertyNames.Feather, PropertyNames.ClipBlack,
+                PropertyNames.ClipWhite,
+            }),
+            (Strings.TabOutput, new[]
+            {
+                PropertyNames.Despill, PropertyNames.Decontaminate, PropertyNames.Shadows, PropertyNames.Invert,
+                PropertyNames.Output, PropertyNames.BackdropColor,
+            }),
+        });
+    }
+
+    /// <summary>Moves the configured controls of the flat default panel onto tab pages, so the dialog is less tall.</summary>
+    private static ControlInfo Tabbed(PanelControlInfo flat, PropertyCollection props, (string Title, PropertyNames[] Controls)[] tabs)
+    {
+        var container = new TabContainerControlInfo((TabContainerStateProperty)props[PropertyNames.TabState]!);
+        foreach (var (title, controls) in tabs)
+        {
+            var page = new TabPageControlInfo { Text = title };
+            foreach (PropertyNames p in controls)
+            {
+                PropertyControlInfo control = flat.FindControlForPropertyName(p)!;
+                flat.RemoveChildControl(control);
+                page.AddChildControl(control);
+            }
+            container.AddTab(page);
+        }
+
+        var root = new PanelControlInfo();
+        root.AddChildControl(container);
+        return root;
+    }
+
+    /// <summary>Which network AI mode will use, shown under the model choice.</summary>
+    private static string AiStatus()
+    {
+        bool full = Core.Ai.Models.Find(AiModel.BiRefNet) != null, lite = Core.Ai.Models.Find(AiModel.BiRefNetLite) != null;
+        if (!full && !lite) return Strings.AiMissing(Core.Ai.Models.ModelDirectory);
+        if (Core.Ai.AiSegmenter.LoadError is string error) return Strings.AiFailed(error);
+        string status = full && lite ? Strings.AiInstalled : full ? Strings.AiOnlyFull : Strings.AiOnlyLite;
+        return Core.Ai.AiSegmenter.LastRunOnGpu switch
+        {
+            true => status + " " + Strings.AiOnGpu,
+            false => status + " " + Strings.AiOnCpu,
+            null => status,
+        };
     }
 
     protected override void OnCustomizeConfigUIWindowProperties(PropertyCollection props)
@@ -219,6 +292,7 @@ public sealed class UltraKeyEffect : PropertyBasedBitmapEffect
             var next = new KeyerSettings
             {
                 Mode = (KeyMode)newToken.GetProperty<StaticListChoiceProperty>(PropertyNames.Mode)!.Value,
+                AiModel = (AiModel)newToken.GetProperty<StaticListChoiceProperty>(PropertyNames.AiModel)!.Value,
                 CustomKeyRgb = Int(newToken, PropertyNames.KeyColor),
                 PrimaryRgb = (primary.R << 16) | (primary.G << 8) | primary.B,
                 PickX = pick.X,

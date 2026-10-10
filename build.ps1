@@ -13,5 +13,6 @@ if ($Install) {
     $effects = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "paint.net App Files\Effects"
     New-Item -ItemType Directory -Force -Path $effects | Out-Null
     Copy-Item $dll $effects -Force
+    & "$PSScriptRoot\install.ps1" -ModelsOnly
     Write-Host "Installed to $effects - restart Paint.NET."
 }

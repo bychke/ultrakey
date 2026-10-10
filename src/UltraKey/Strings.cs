@@ -12,6 +12,11 @@ internal static class Strings
     public static string EffectName => T("UltraKey Background Remover", "UltraKey – usuwanie tła");
     public static string WindowTitle => T("UltraKey – Background Remover & Chroma Key", "UltraKey – usuwanie tła i chroma key");
 
+    public static string TabBackground => T("Background", "Tło");
+    public static string TabPoints => T("Points", "Punkty");
+    public static string TabMatte => T("Edges & matte", "Krawędzie i maska");
+    public static string TabOutput => T("Colour & output", "Kolor i wynik");
+
     public static string Mode => T("Background", "Tło");
     public static string ModeAi => T("AI – cut out the subject from any background (photos)", "AI – wytnij obiekt z dowolnego tła (zdjęcia)");
     public static string ModeAuto => T("Auto – uniform background detected from the edges (green screens too)", "Auto – jednolite tło wykryte z krawędzi (też green screen)");
@@ -20,6 +25,19 @@ internal static class Strings
     public static string ModeCustom => T("Custom key colour", "Własny kolor klucza");
     public static string ModePrimary => T("Primary colour (palette)", "Kolor podstawowy (paleta)");
     public static string ModePick => T("Pick a point in the image", "Wskaż punkt na obrazie");
+
+    public static string AiModel => T("AI model", "Model AI");
+    public static string AiBiRefNet => T("BiRefNet – best quality (GPU ~5 s, CPU ~20 s)", "BiRefNet – najlepsza jakość (GPU ok. 5 s, CPU ok. 20 s)");
+    public static string AiBiRefNetLite => T("BiRefNet lite – faster (GPU ~1 s, CPU ~8 s)", "BiRefNet lite – szybszy (GPU ok. 1 s, CPU ok. 8 s)");
+    public static string AiU2Net => T("U²-Net – built in, less accurate", "U²-Net – wbudowany, mniej dokładny");
+    public static string AiInstalled => T("BiRefNet is installed.", "BiRefNet jest zainstalowany.");
+    public static string AiOnlyFull => T("Only full BiRefNet is installed (used for lite too).", "Zainstalowany jest tylko pełny BiRefNet (używany też zamiast lite).");
+    public static string AiOnlyLite => T("Only BiRefNet lite is installed (used for full too).", "Zainstalowany jest tylko BiRefNet lite (używany też zamiast pełnego).");
+    public static string AiOnGpu => T("It runs on the graphics card.", "Działa na karcie graficznej.");
+    public static string AiOnCpu => T("It runs on the processor (no DirectX 12 GPU available).", "Działa na procesorze (brak karty z DirectX 12).");
+    public static string AiMissing(string dir) => T($"BiRefNet is not installed, so the built-in U²-Net is used. Run install.ps1 to download it (600 MB) into {dir}.",
+                                                    $"BiRefNet nie jest zainstalowany, więc używany jest wbudowany U²-Net. Uruchom install.ps1, aby go pobrać (600 MB) do {dir}.");
+    public static string AiFailed(string error) => T($"BiRefNet could not be loaded, so U²-Net is used: {error}", $"Nie udało się wczytać BiRefNet, więc używany jest U²-Net: {error}");
 
     public static string KeyColor => T("Key colour", "Kolor klucza");
     public static string PickPoint => T("Background sample point", "Punkt próbki tła");

@@ -11,8 +11,21 @@ public enum KeyMode
     PrimaryColor = 4,
     PickPoint = 5,
 
-    /// <summary>Neural subject segmentation (U²-Net) — photos with any background (rooms, floors, outdoors).</summary>
+    /// <summary>Neural subject segmentation (BiRefNet / U²-Net) — photos with any background (rooms, floors, outdoors).</summary>
     AiSubject = 6,
+}
+
+/// <summary>Network used by <see cref="KeyMode.AiSubject"/>; a missing model falls back to the next available one.</summary>
+public enum AiModel
+{
+    /// <summary>BiRefNet (Swin-L, 1024×1024): best edges and subject choice, needs the downloaded model.</summary>
+    BiRefNet = 0,
+
+    /// <summary>BiRefNet lite (Swin-T): several times faster, slightly less accurate.</summary>
+    BiRefNetLite = 1,
+
+    /// <summary>The U²-Net embedded in the plugin (320×320): always available.</summary>
+    U2Net = 2,
 }
 
 /// <summary>What to do with background-coloured areas that are fully enclosed by the subject.</summary>
@@ -36,6 +49,8 @@ public enum OutputMode
 public sealed record KeyerSettings
 {
     public KeyMode Mode { get; init; } = KeyMode.AiSubject;
+
+    public AiModel AiModel { get; init; } = AiModel.BiRefNet;
 
     /// <summary>0xRRGGBB</summary>
     public int CustomKeyRgb { get; init; } = 0x00B140;

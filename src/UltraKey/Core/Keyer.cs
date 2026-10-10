@@ -94,9 +94,9 @@ internal sealed class KeyerRun
     {
         if (s.Mode == KeyMode.AiSubject)
         {
-            float[]? mask = Ai.AiSegmenter.Segment(px, w, h, ct);
-            Mark("ai");
-            if (mask != null) return RunAi(mask);
+            float[]? mask = Ai.AiSegmenter.Segment(px, w, h, s.AiModel, ct, out AiModel used);
+            Mark("ai " + used);
+            if (mask != null) return RunAi(mask, Ai.AiSegmenter.Resolution(used));
             s = s with { Mode = KeyMode.Auto }; // model not shipped: fall back to background detection
         }
 
@@ -176,17 +176,17 @@ internal sealed class KeyerRun
     }
 
     /// <summary>
-    /// AI mode: the network's subject mask replaces the colour model. It is only 320×320, so the outline is
-    /// rebuilt on the real pixels with the same edge machinery (colour-line projection, guided filter) and the
-    /// colours are decontaminated as usual.
+    /// AI mode: the network's subject mask replaces the colour model. It has the network's resolution (320×320 for
+    /// U²-Net, 1024×1024 for BiRefNet), so the outline is rebuilt on the real pixels with the same edge machinery
+    /// (colour-line projection, guided filter) and the colours are decontaminated as usual.
     /// </summary>
-    private uint[] RunAi(float[] mask)
+    private uint[] RunAi(float[] mask, int resolution)
     {
         chromaMode = false;
         keepEnclosed = false;
         model = Array.Empty<Lab>();
         ConfigureThresholds();
-        edgeScale = MathF.Max(1f, Math.Max(w, h) / 320f);
+        edgeScale = MathF.Max(1f, (float)Math.Max(w, h) / resolution);
 
         // Tolerance shifts the decision towards removing more, softness widens the transition.
         float t0 = (float)(0.5 * Math.Clamp(s.Tolerance, 0, 100) / 100.0);
@@ -225,7 +225,7 @@ internal sealed class KeyerRun
         if (s.KeepPointOn)
         {
             var (kx, ky) = PointToPixel(s.KeepX, s.KeepY);
-            float[]? obj = Ai.AiSegmenter.ObjectAt(px, w, h, kx, ky, ct);
+            float[]? obj = Ai.AiSegmenter.ObjectAt(px, w, h, kx, ky, s.AiModel, ct);
             if (obj != null)
             {
                 for (int i = 0; i < n; i++)

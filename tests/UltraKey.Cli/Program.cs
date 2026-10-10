@@ -57,11 +57,18 @@ if (dbg != null)
     };
 }
 
-if (Environment.GetEnvironmentVariable("ULTRAKEY_TRACE") != null) KeyerRun.Trace = Console.WriteLine;
+if (Environment.GetEnvironmentVariable("ULTRAKEY_TRACE") != null)
+{
+    KeyerRun.Trace = Console.WriteLine;
+    UltraKey.Core.Ai.AiSegmenter.Trace = Console.WriteLine;
+}
 
 var sw = Stopwatch.StartNew();
 var result = Keyer.Process(pixels, w, h, settings) ?? throw new InvalidOperationException("cancelled");
 Console.WriteLine($"{w}x{h} processed in {sw.ElapsedMilliseconds} ms");
+if (UltraKey.Core.Ai.AiSegmenter.LastRunOnGpu is bool gpu) Console.WriteLine("BiRefNet ran on the " + (gpu ? "GPU" : "CPU"));
+if (UltraKey.Core.Ai.AiSegmenter.LoadError is string error) Console.WriteLine("BiRefNet: " + error);
+if (UltraKey.Core.Ai.AiSegmenter.GpuError is string gpuError) Console.WriteLine("GPU: " + gpuError);
 Pam.Write(args[1], result, w, h);
 return 0;
 

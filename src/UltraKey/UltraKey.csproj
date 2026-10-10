@@ -18,7 +18,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>UltraKey</RootNamespace>
     <AssemblyName>UltraKey</AssemblyName>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <Product>UltraKey</Product>
     <Description>Background remover and chroma key effect for Paint.NET</Description>
     <Copyright>MIT License</Copyright>
@@ -36,6 +36,54 @@
   <ItemGroup>
     <EmbeddedResource Include="Icon.png" LogicalName="UltraKey.Icon.png" />
   </ItemGroup>
+
+  <!--
+    BiRefNet runs on ONNX Runtime (DirectML on any DirectX 12 GPU, CPU otherwise). Paint.NET only loads the plugin
+    DLL itself, so the runtime is embedded (see Core/Ai/OnnxRuntimeLoader.cs) instead of copied next to it.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" GeneratePathProperty="true" ExcludeAssets="runtime;native;build;buildTransitive" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.24.4" GeneratePathProperty="true" ExcludeAssets="runtime;build;buildTransitive" />
+    <PackageReference Include="Microsoft.AI.DirectML" Version="1.15.4" GeneratePathProperty="true" ExcludeAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OrtRuntimeFile Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.dll" />
+    <OrtRuntimeFile Include="$(PkgMicrosoft_ML_OnnxRuntime_DirectML)/runtimes/win-x64/native/onnxruntime.dll" />
+    <OrtRuntimeFile Include="$(PkgMicrosoft_AI_DirectML)/bin/x64-win/DirectML.dll" />
+  </ItemGroup>
+
+  <UsingTask TaskName="GzipFiles" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputDir ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        Directory.CreateDirectory(OutputDir);
+        foreach (var item in Files)
+        {
+            string target = Path.Combine(OutputDir, Path.GetFileName(item.ItemSpec) + ".gz");
+            using var input = File.OpenRead(item.ItemSpec);
+            using var output = File.Create(target);
+            using var gz = new GZipStream(output, CompressionLevel.Optimal);
+            input.CopyTo(gz);
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- IntermediateOutputPath is not defined yet while the project body is evaluated, hence obj/ort. -->
+  <ItemGroup>
+    <OrtPackedFile Include="@(OrtRuntimeFile->'$(BaseIntermediateOutputPath)ort/%(Filename)%(Extension).gz')" />
+    <EmbeddedResource Include="@(OrtPackedFile)" LogicalName="UltraKey.ort.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="EmbedOnnxRuntime" BeforeTargets="PrepareResourceNames" Inputs="@(OrtRuntimeFile)" Outputs="@(OrtPackedFile)">
+    <GzipFiles Files="@(OrtRuntimeFile)" OutputDir="$(BaseIntermediateOutputPath)ort" />
+  </Target>
 
   <ItemGroup>
     <Reference Include="PaintDotNet.Base"><HintPath>$(PdnDir)\PaintDotNet.Base.dll</HintPath><Private>false</Private></Reference>

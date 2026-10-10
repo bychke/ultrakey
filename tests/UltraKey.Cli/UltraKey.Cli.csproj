@@ -14,6 +14,17 @@
     <Compile Include="../../src/UltraKey/Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- BiRefNet: DirectML on Windows (as in the plugin), the CPU build elsewhere. -->
+  <ItemGroup>
+    <PackageReference Condition="$([MSBuild]::IsOSPlatform('Windows'))" Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" />
+    <PackageReference Condition="!$([MSBuild]::IsOSPlatform('Windows'))" Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" />
+    <PackageReference Condition="$([MSBuild]::IsOSPlatform('Windows'))" Include="Microsoft.AI.DirectML" Version="1.15.4" GeneratePathProperty="true" />
+  </ItemGroup>
+  <!-- Next to the exe, so onnxruntime.dll does not pick up the older DirectML.dll in System32. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <None Include="$(PkgMicrosoft_AI_DirectML)/bin/x64-win/DirectML.dll" Link="DirectML.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
   <!-- AI subject model (U²-Net, Apache-2.0). Not in git: create it with tools/model/get_model.sh (or .ps1). -->
   <PropertyGroup>
     <UltraKeyModel Condition="'$(UltraKeyModel)' == ''">$(MSBuildThisFileDirectory)../../tools/model/u2net.ukm</UltraKeyModel>
