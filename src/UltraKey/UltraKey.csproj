@@ -18,7 +18,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>UltraKey</RootNamespace>
     <AssemblyName>UltraKey</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Product>UltraKey</Product>
     <Description>Background remover and chroma key effect for Paint.NET</Description>
     <Copyright>MIT License</Copyright>
@@ -27,6 +27,10 @@
     <NoWarn>$(NoWarn);MSB3277</NoWarn>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <PdnDir Condition="'$(PdnDir)' == ''">C:\Program Files\paint.net</PdnDir>
+    <!-- Oldest Paint.NET the plugin declares it needs (5.100 = 5.1.0), see tools/PdnRefFix. -->
+    <PdnMinimumVersion Condition="'$(PdnMinimumVersion)' == ''">5.100.0.0</PdnMinimumVersion>
+    <!-- No pdb: it would no longer match the rewritten DLL. -->
+    <DebugType>none</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,5 +51,13 @@
     <Reference Include="PaintDotNet.Windows.Core"><HintPath>$(PdnDir)\PaintDotNet.Windows.Core.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="PaintDotNet.Windows.Framework"><HintPath>$(PdnDir)\PaintDotNet.Windows.Framework.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
+
+  <!--
+    Paint.NET refuses plugins that reference a newer PaintDotNet.* version than the installed one. Rewrite the
+    references recorded from the build-time DLLs down to the minimum supported version.
+  -->
+  <Target Name="LowerPdnReferenceVersions" AfterTargets="Build" Condition="'$(PdnMinimumVersion)' != 'none'">
+    <Exec Command="dotnet run -c Release --project &quot;$(MSBuildThisFileDirectory)../../tools/PdnRefFix/PdnRefFix.csproj&quot; -- &quot;$(TargetPath)&quot; $(PdnMinimumVersion)" />
+  </Target>
 
 </Project>

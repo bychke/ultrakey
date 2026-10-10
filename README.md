@@ -35,7 +35,11 @@ Interfejs jest po polsku, gdy Paint.NET działa po polsku, w pozostałych przypa
    albo do `C:\Program Files\paint.net\Effects`.
 3. Uruchom ponownie Paint.NET. Efekt jest w menu **Efekty → Obiekt → UltraKey – usuwanie tła**.
 
-Wymaga Paint.NET **5.1 lub nowszego** (.NET 9).
+Wymaga Paint.NET **5.1.0 lub nowszego** (.NET 9). Wersji sprawdzisz w *Pomoc → O programie*.
+
+**Błąd `Could not load file or assembly 'PaintDotNet.Core, Version=…'`** – Paint.NET jest starszy niż wersja,
+której wymaga DLL. Od wersji 1.0.1 plugin wymaga tylko 5.1.0; jeśli masz serię 5.0.x, zaktualizuj Paint.NET
+(*Ustawienia → Aktualizacje* lub [getpaint.net](https://www.getpaint.net)).
 
 ## Szybki start
 
@@ -86,6 +90,7 @@ src/UltraKey/Core/ForegroundEstimator.cs  estymacja koloru obiektu/tła
 src/UltraKey/Core/GuidedFilter.cs    kolorowy guided filter (kafelkowy)
 src/UltraKey/Core/ImageOps.cs        rozmycia, morfologia, push-pull, flood fill
 tests/                               harness CLI, generator scen, testy regresyjne
+tools/PdnRefFix/                     krok budowania: obniża wymaganą wersję Paint.NET w DLL do 5.1.0
 ```
 
 ---
