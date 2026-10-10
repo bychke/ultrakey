@@ -7,3 +7,4 @@ pdn/
 pdn.zip
 tools/model/*.ukm
 tools/model/*.onnx
+dist/
